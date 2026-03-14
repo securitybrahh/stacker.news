@@ -622,9 +622,14 @@ export default {
         throw error
       }
     },
-    setSettings: async (parent, { settings: { nostrRelays, ...data } }, { me, models }) => {
+    setSettings: async (parent, { settings: { nostrRelays, privacyCustomRedirects, ...data } }, { me, models }) => {
       if (!me) {
         throw new GqlAuthenticationError()
+      }
+
+      // Serialize privacyCustomRedirects to JSON string for storage
+      if (privacyCustomRedirects) {
+        data.privacyCustomRedirects = JSON.stringify(privacyCustomRedirects)
       }
 
       await validateSchema(settingsSchema, { nostrRelays, ...data })
@@ -850,6 +855,18 @@ export default {
       }
 
       return user
+    },
+    privacyCustomRedirects: async (user, args, { me, models }) => {
+      if (!user.privacyCustomRedirects) {
+        return null
+      }
+
+      try {
+        return JSON.parse(user.privacyCustomRedirects)
+      } catch (err) {
+        console.error('Error parsing privacyCustomRedirects:', err)
+        return null
+      }
     },
     optional: user => user,
     meSubscriptionPosts: async (user, args, { me, models }) => {

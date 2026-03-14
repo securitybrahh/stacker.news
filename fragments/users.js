@@ -95,6 +95,15 @@ export const SETTINGS_FIELDS = gql`
       postsSatsFilter
       commentsSatsFilter
       nsfwMode
+      privacyRedirects
+      privacyUrlTwitter
+      privacyUrlReddit
+      privacyUrlTiktok
+      privacyUrlTwitch
+      privacyCustomRedirects {
+        source
+        target
+      }
       authMethods {
         lightning
         nostr

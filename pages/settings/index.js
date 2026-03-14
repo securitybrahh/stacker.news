@@ -142,7 +142,13 @@ export default function Settings ({ ssrData }) {
             nostrCrossposting: settings?.nostrCrossposting,
             nostrRelays: settings?.nostrRelays?.length ? settings?.nostrRelays : [''],
             hideBookmarks: settings?.hideBookmarks,
-            noReferralLinks: settings?.noReferralLinks
+            noReferralLinks: settings?.noReferralLinks,
+            privacyRedirects: settings?.privacyRedirects || false,
+            privacyUrlTwitter: settings?.privacyUrlTwitter || '',
+            privacyUrlReddit: settings?.privacyUrlReddit || '',
+            privacyUrlTiktok: settings?.privacyUrlTiktok || '',
+            privacyUrlTwitch: settings?.privacyUrlTwitch || '',
+            privacyCustomRedirects: settings?.privacyCustomRedirects || []
           }}
           schema={settingsSchema}
           onSubmit={async ({
@@ -163,6 +169,11 @@ export default function Settings ({ ssrData }) {
               ?.filter(word => word.trim().length > 0)
               .map(relay => relay.startsWith('wss://') ? relay : `wss://${relay}`)
 
+            // Process privacy custom redirects - filter out empty entries
+            const privacyCustomRedirectsFiltered = values.privacyCustomRedirects
+              ?.filter(r => r?.key && r?.value)
+              ?.map(r => ({ source: r.key, target: r.value }))
+
             try {
               await setSettings({
                 variables: {
@@ -175,7 +186,8 @@ export default function Settings ({ ssrData }) {
                     zapUndos: zapUndosEnabled ? Number(zapUndos) : null,
                     nostrPubkey,
                     nostrRelays: nostrRelaysFiltered,
-                    ...values
+                    ...values,
+                    privacyCustomRedirects: privacyCustomRedirectsFiltered
                   }
                 }
               })
@@ -420,6 +432,59 @@ export default function Settings ({ ssrData }) {
             label={<>don't create referral links on copy</>}
             name='noReferralLinks'
           />
+          <div className='form-label mt-4'>privacy frontends</div>
+          <Checkbox
+            label={
+              <div className='d-flex align-items-center'>redirect to privacy frontends
+                <Info>
+                  <ul>
+                    <li>Redirect links to privacy-friendly alternatives</li>
+                    <li>Twitter/X → xcancel.com (or custom)</li>
+                    <li>Reddit → redlib (or custom)</li>
+                    <li>TikTok → proxitok (or custom)</li>
+                    <li>Twitch → safetwitch (or custom)</li>
+                  </ul>
+                </Info>
+              </div>
+            }
+            name='privacyRedirects'
+            groupClassName='mb-2'
+          />
+          {settings?.privacyRedirects && (
+            <div className='ms-4 mb-3'>
+              <Input
+                label='Twitter/X frontend URL'
+                name='privacyUrlTwitter'
+                placeholder='https://xcancel.com'
+                maxLength={200}
+              />
+              <Input
+                label='Reddit frontend URL'
+                name='privacyUrlReddit'
+                placeholder='https://redlib.com'
+                maxLength={200}
+              />
+              <Input
+                label='TikTok frontend URL'
+                name='privacyUrlTiktok'
+                placeholder='https://proxitok.pabloferreiro.es'
+                maxLength={200}
+              />
+              <Input
+                label='Twitch frontend URL'
+                name='privacyUrlTwitch'
+                placeholder='https://safetwitch.uest.cc'
+                maxLength={200}
+              />
+              <div className='form-label'>custom redirects</div>
+              <VariableInput
+                name='privacyCustomRedirects'
+                keyPlaceholder='source domain'
+                valuePlaceholder='target domain'
+                addLabel='add redirect'
+              />
+            </div>
+          )}
           <h4 className='mt-5'>content</h4>
           <Range
             label={

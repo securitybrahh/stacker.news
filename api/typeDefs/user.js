@@ -111,6 +111,17 @@ export default gql`
     tipRandomMax: Int
     turboTipping: Boolean!
     zapUndos: Int
+    privacyRedirects: Boolean!
+    privacyUrlTwitter: String
+    privacyUrlReddit: String
+    privacyUrlTiktok: String
+    privacyUrlTwitch: String
+    privacyCustomRedirects: [CustomRedirectInput!]
+  }
+
+  input CustomRedirectInput {
+    source: String!
+    target: String!
   }
 
   type AuthMethods {
@@ -184,6 +195,17 @@ export default gql`
     vaultKeyHash: String
     vaultKeyHashUpdatedAt: Date
     walletsUpdatedAt: Date
+    privacyRedirects: Boolean!
+    privacyUrlTwitter: String
+    privacyUrlReddit: String
+    privacyUrlTiktok: String
+    privacyUrlTwitch: String
+    privacyCustomRedirects: [CustomRedirect!]
+  }
+
+  type CustomRedirect {
+    source: String!
+    target: String!
   }
 
   type UserOptional {

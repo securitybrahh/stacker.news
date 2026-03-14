@@ -97,6 +97,12 @@ model User {
   hideNostr                 Boolean                @default(true)
   hideTwitter               Boolean                @default(true)
   noReferralLinks           Boolean                @default(false)
+  privacyRedirects          Boolean                @default(false)
+  privacyUrlTwitter         String?
+  privacyUrlReddit         String?
+  privacyUrlTiktok         String?
+  privacyUrlTwitch         String?
+  privacyCustomRedirects   String? // JSON string for custom redirects
   githubId                  String?
   twitterId                 String?
   followers                 UserSubscription[]     @relation("follower")
