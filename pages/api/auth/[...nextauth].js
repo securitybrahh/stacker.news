@@ -103,6 +103,8 @@ function getCallbacks (req, res) {
         // token won't have an id on it for new logins, we add it
         // note: token is what's kept in the jwt
         token.id = Number(user.id)
+        token.totpEnabled = !!user.totpEnabled
+        token.totpVerified = !user.totpEnabled
 
         // if referrer exists, set on user
         // isNewUser doesn't work for nostr/lightning auth because we create the user before nextauth can
@@ -165,6 +167,7 @@ function getCallbacks (req, res) {
       // note: this function takes the current token (result of running jwt above)
       // and returns a new object session that's returned whenever get|use[Server]Session is called
       session.user.id = token.id
+      session.user.totpRequired = !!token.totpEnabled && !token.totpVerified
 
       return session
     },

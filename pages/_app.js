@@ -26,6 +26,7 @@ import { WalletsProvider } from '@/wallets/client/hooks'
 import FaviconProvider from '@/components/favicon'
 import { CookiesProvider } from '@/components/use-cookie'
 import { patchDOMTranslations } from '@/lib/patch-dom-translate'
+import { TotpLoginModal } from '@/components/totp-auth'
 
 const PWAPrompt = dynamic(() => import('react-ios-pwa-prompt'), { ssr: false })
 
@@ -131,6 +132,7 @@ export default function MyApp ({ Component, pageProps: { ...props } }) {
                                     <ChainFeeProvider chainFee={chainFee}>
                                       <ErrorBoundary>
                                         <Component ssrData={ssrData} {...otherProps} />
+                                        <TotpLoginModal />
                                         {!router?.query?.disablePrompt && <PWAPrompt copyBody='This website has app functionality. Add it to your home screen to use it in fullscreen and receive notifications. In Safari:' promptOnVisit={2} />}
                                       </ErrorBoundary>
                                     </ChainFeeProvider>

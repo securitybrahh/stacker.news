@@ -49,6 +49,19 @@ export default gql`
     toggleMute(id: ID): User
     generateApiKey(id: ID!): String
     deleteApiKey(id: ID!): User
+    generateTotpSecret: TotpSecretResponse!
+    enableTotp(secret: String!, token: String!): TotpEnableResponse!
+    disableTotp(token: String!): Boolean!
+    verifyTotpLogin(token: String!): Boolean!
+  }
+
+  type TotpSecretResponse {
+    secret: String!
+    otpauthUrl: String!
+  }
+
+  type TotpEnableResponse {
+    recoveryCodes: [String!]!
   }
 
   type User {
@@ -117,6 +130,7 @@ export default gql`
     github: Boolean!
     twitter: Boolean!
     email: Boolean!
+    totp: Boolean!
     apiKey: Boolean
   }
 
@@ -140,6 +154,7 @@ export default gql`
     hasInvites: Boolean!
     apiKeyEnabled: Boolean!
     showPassphrase: Boolean!
+    totpRequired: Boolean
     diagnostics: Boolean! @deprecated(reason: "Compatibility shim")
 
     """

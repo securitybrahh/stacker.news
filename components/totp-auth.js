@@ -9,6 +9,7 @@ import Alert from 'react-bootstrap/Alert'
 import Button from 'react-bootstrap/Button'
 import PageLoading from '@/components/page-loading'
 import { useToast } from '@/components/toast'
+import { useMe } from '@/components/me'
 import Clipboard from '@/svgs/clipboard-line.svg'
 
 export const GENERATE_TOTP_SECRET = gql`
@@ -203,3 +204,74 @@ export function TotpDisableModal ({ onClose, onSuccess }) {
     </div>
   )
 }
+
+export const VERIFY_TOTP_LOGIN = gql`
+  mutation verifyTotpLogin($token: String!) {
+    verifyTotpLogin(token: $token)
+  }
+`
+
+export function TotpLoginModal () {
+  const { me, refreshMe } = useMe()
+  const [verifyTotpLogin] = useMutation(VERIFY_TOTP_LOGIN)
+  const [submitError, setSubmitError] = useState(null)
+
+  if (!me?.privates?.totpRequired) return null
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem'
+      }}
+    >
+      <div className='bg-body p-4 rounded shadow border' style={{ maxWidth: '400px', width: '100%' }}>
+        <h4 className='mb-3'>Two-Factor Authentication</h4>
+        <p className='text-muted small mb-3'>
+          Please enter the 6-digit code from your authenticator app (or a recovery code) to complete sign in.
+        </p>
+
+        {submitError && (
+          <Alert variant='danger' onClose={() => setSubmitError(null)} dismissible>
+            {submitError}
+          </Alert>
+        )}
+
+        <Form
+          initial={{ token: '' }}
+          schema={totpSchema}
+          onSubmit={async ({ token }) => {
+            setSubmitError(null)
+            try {
+              await verifyTotpLogin({ variables: { token } })
+              await refreshMe()
+            } catch (err) {
+              console.error(err)
+              setSubmitError(err.message || 'Invalid 2FA code')
+            }
+          }}
+        >
+          <Input
+            name='token'
+            placeholder='123456 or recovery code'
+            autoFocus
+            required
+          />
+          <SubmitButton variant='primary' className='w-100 mt-3'>
+            Verify Sign In
+          </SubmitButton>
+        </Form>
+      </div>
+    </div>
+  )
+}
+

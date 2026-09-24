@@ -49,6 +49,7 @@ ${STREAK_FIELDS}
       vaultKeyHashUpdatedAt
       walletsUpdatedAt
       showPassphrase
+      totpRequired
     }
     optional {
       isContributor
@@ -101,6 +102,7 @@ export const SETTINGS_FIELDS = gql`
         github
         twitter
         email
+        totp
         apiKey
       }
       apiKeyEnabled

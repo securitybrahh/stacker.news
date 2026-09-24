@@ -23,6 +23,7 @@ import { useToast } from '@/components/toast'
 import { useMe } from '@/components/me'
 import { SettingsHeader, hasOnlyOneAuthMethod } from './index'
 import { AuthBanner } from '@/components/banners'
+import { TotpSetupModal, TotpDisableModal } from '@/components/totp-auth'
 import * as cookie from 'cookie'
 import { cookieOptions } from '@/lib/auth'
 
@@ -88,6 +89,37 @@ function NostrLinkButton ({ unlink, status }) {
   )
 }
 
+function TotpLinkButton ({ status }) {
+  const showModal = useShowModal()
+  const router = useRouter()
+  const text = status ? 'Disable 2FA (TOTP)' : 'Enable 2FA (TOTP)'
+  const onClick = status
+    ? () => showModal(onClose =>
+      <TotpDisableModal
+        onClose={onClose}
+        onSuccess={() => {
+          router.replace(router.asPath)
+        }}
+      />)
+    : () => showModal(onClose =>
+      <TotpSetupModal
+        onClose={onClose}
+        onSuccess={() => {
+          router.replace(router.asPath)
+        }}
+      />)
+
+  return (
+    <Button
+      variant={status ? 'danger' : 'secondary'}
+      className='d-block mt-2'
+      onClick={onClick}
+    >
+      {text}
+    </Button>
+  )
+}
+
 function UnlinkObstacle ({ onClose, type, unlinkAuth }) {
   const router = useRouter()
   const toaster = useToast()
@@ -143,6 +175,7 @@ function AuthMethods ({ methods, apiKeyEnabled }) {
           twitter
           github
           nostr
+          totp
         }
       }`, {
       update (cache, { data: { unlinkAuth } }) {
@@ -223,6 +256,8 @@ function AuthMethods ({ methods, apiKeyEnabled }) {
           )
         } else if (provider === 'nostr') {
           return <NostrLinkButton key='nostr' status={methods[provider]} unlink={async () => await unlink(provider)} />
+        } else if (provider === 'totp') {
+          return <TotpLinkButton key='totp' status={methods[provider]} />
         } else {
           return (
             <LoginButton

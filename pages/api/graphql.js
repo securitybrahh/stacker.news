@@ -86,6 +86,8 @@ const apolloHandler = startServerAndCreateNextHandler(apolloServer, {
     const userLoader = createUserLoader(models)
     const subLoader = createSubLoader(models)
     return {
+      req,
+      res,
       models,
       headers: req.headers,
       lnd,

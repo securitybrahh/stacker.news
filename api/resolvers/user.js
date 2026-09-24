@@ -12,6 +12,9 @@ import { GqlAuthenticationError, GqlAuthorizationError, GqlInputError } from '@/
 import { processCrop } from '@/lib/imgproxy'
 import { payInTypesSql } from '../payIn/lib/sql'
 import { Prisma } from '@prisma/client'
+import { generateTotpSecret, generateOtpauthUrl, verifyTotp, generateRecoveryCodes, hashRecoveryCode } from '@/lib/totp'
+import { encode as encodeJWT } from 'next-auth/jwt'
+import { setMultiAuthCookies } from '@/lib/auth'
 
 const contributors = new Set()
 
@@ -44,7 +47,8 @@ async function authMethods (user, args, { models, me }) {
       lightning: false,
       twitter: false,
       github: false,
-      nostr: false
+      nostr: false,
+      totp: false
     }
   }
 
@@ -62,6 +66,7 @@ async function authMethods (user, args, { models, me }) {
     twitter: oauth.indexOf('twitter') >= 0,
     github: oauth.indexOf('github') >= 0,
     nostr: !!user.nostrAuthPubkey,
+    totp: !!user.totpEnabled,
     apiKey: user.apiKeyEnabled ? !!user.apiKeyHash : null
   }
 }
@@ -744,6 +749,130 @@ export default {
 
       return await models.user.update({ where: { id: me.id }, data: { apiKeyHash: null } })
     },
+    generateTotpSecret: async (parent, args, { me, models, userLoader }) => {
+      if (!me) {
+        throw new GqlAuthenticationError()
+      }
+      assertApiKeyNotPermitted({ me })
+
+      const user = await userLoader.load(me.id)
+      const secret = generateTotpSecret()
+      const otpauthUrl = generateOtpauthUrl({ secret, accountName: user.name || String(user.id) })
+
+      return { secret, otpauthUrl }
+    },
+    enableTotp: async (parent, { secret, token }, { me, models }) => {
+      if (!me) {
+        throw new GqlAuthenticationError()
+      }
+      assertApiKeyNotPermitted({ me })
+
+      const valid = verifyTotp({ secret, token })
+      if (!valid) {
+        throw new GqlInputError('Invalid 2FA code')
+      }
+
+      const recoveryCodes = generateRecoveryCodes(8)
+      const hashedCodes = recoveryCodes.map(hashRecoveryCode)
+
+      await models.user.update({
+        where: { id: me.id },
+        data: {
+          totpSecret: secret,
+          totpEnabled: true,
+          totpRecoveryCodes: hashedCodes
+        }
+      })
+
+      return { recoveryCodes }
+    },
+    disableTotp: async (parent, { token }, { me, models }) => {
+      if (!me) {
+        throw new GqlAuthenticationError()
+      }
+      assertApiKeyNotPermitted({ me })
+
+      const user = await models.user.findUnique({ where: { id: me.id } })
+      if (!user?.totpEnabled) {
+        return true
+      }
+
+      let valid = false
+      if (user.totpSecret) {
+        valid = verifyTotp({ secret: user.totpSecret, token })
+      }
+
+      if (!valid && user.totpRecoveryCodes?.length) {
+        const hashed = hashRecoveryCode(token)
+        if (user.totpRecoveryCodes.includes(hashed)) {
+          valid = true
+        }
+      }
+
+      if (!valid) {
+        throw new GqlInputError('Invalid 2FA code or recovery code')
+      }
+
+      await models.user.update({
+        where: { id: me.id },
+        data: {
+          totpSecret: null,
+          totpEnabled: false,
+          totpRecoveryCodes: []
+        }
+      })
+
+      return true
+    },
+    verifyTotpLogin: async (parent, { token }, { me, models, req, res, userLoader }) => {
+      if (!me) {
+        throw new GqlAuthenticationError()
+      }
+      assertApiKeyNotPermitted({ me })
+
+      const user = await userLoader.load(me.id)
+      if (!user?.totpEnabled) {
+        return true
+      }
+
+      let valid = false
+      if (user.totpSecret) {
+        valid = verifyTotp({ secret: user.totpSecret, token })
+      }
+
+      if (!valid && user.totpRecoveryCodes?.length) {
+        const hashed = hashRecoveryCode(token)
+        if (user.totpRecoveryCodes.includes(hashed)) {
+          valid = true
+          // Consume recovery code
+          const newCodes = user.totpRecoveryCodes.filter(c => c !== hashed)
+          await models.user.update({
+            where: { id: me.id },
+            data: { totpRecoveryCodes: newCodes }
+          })
+        }
+      }
+
+      if (!valid) {
+        throw new GqlInputError('Invalid 2FA code or recovery code')
+      }
+
+      if (req && res) {
+        const secret = process.env.NEXTAUTH_SECRET
+        const newJwt = await encodeJWT({
+          token: {
+            id: Number(me.id),
+            sub: Number(me.id),
+            totpEnabled: true,
+            totpVerified: true
+          },
+          secret
+        })
+        setMultiAuthCookies(req, res, { ...user, jwt: newJwt })
+      }
+
+      return true
+    },
     unlinkAuth: async (parent, { authType }, { models, me, userLoader }) => {
       if (!me) {
         throw new GqlAuthenticationError()
@@ -769,6 +898,8 @@ export default {
         user = await models.user.update({ where: { id: me.id }, data: { hideNostr: true, nostrAuthPubkey: null } })
       } else if (authType === 'email') {
         user = await models.user.update({ where: { id: me.id }, data: { email: null, emailVerified: null, emailHash: null } })
+      } else if (authType === 'totp') {
+        user = await models.user.update({ where: { id: me.id }, data: { totpSecret: null, totpEnabled: false, totpRecoveryCodes: [] } })
       } else {
         throw new GqlInputError('no such account')
       }
@@ -946,6 +1077,7 @@ export default {
       }
       return msatsToSats(user.mcredits)
     },
+    totpRequired: (user, args, { me }) => !!me?.totpRequired,
     authMethods,
     hasInvites: async (user, args, { models }) => {
       const invites = await models.user.findUnique({

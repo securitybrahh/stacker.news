@@ -129,6 +129,9 @@ model User {
   vaultKeyHashUpdatedAt     DateTime?
   showPassphrase            Boolean                @default(true)
   walletsUpdatedAt          DateTime?
+  totpSecret                String?
+  totpEnabled               Boolean                @default(false)
+  totpRecoveryCodes         String[]               @default([])
   UserSubTrust              UserSubTrust[]
   PayIn                     PayIn[]
   PayInBolt11               PayInBolt11[]
